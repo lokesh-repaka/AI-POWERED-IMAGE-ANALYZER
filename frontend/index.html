@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VISIO — AI Image Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #070b14;
+            --surface: rgba(255,255,255,0.04);
+            --surface-hover: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.08);
+            --accent: #c9a96e;
+            --accent2: #6ec9c0;
+            --text: #e8e4de;
+            --muted: rgba(232,228,222,0.45);
+            --glow: rgba(201,169,110,0.15);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 20%, rgba(201,169,110,0.07) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(110,201,192,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 60% at 60% 30%, rgba(255,255,255,0.02) 0%, transparent 50%);
+            pointer-events: none;
+            animation: bgPulse 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgPulse {
+            from { opacity: 0.7; }
+            to { opacity: 1; }
+        }
+
+        /* Floating orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            animation: float 12s ease-in-out infinite;
+        }
+        .orb-1 { width: 400px; height: 400px; background: rgba(201,169,110,0.08); top: -100px; left: -100px; animation-delay: 0s; }
+        .orb-2 { width: 300px; height: 300px; background: rgba(110,201,192,0.07); bottom: -80px; right: -80px; animation-delay: -4s; }
+        .orb-3 { width: 200px; height: 200px; background: rgba(201,169,110,0.05); top: 50%; left: 70%; animation-delay: -8s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(20px, -20px) scale(1.05); }
+            66% { transform: translate(-10px, 15px) scale(0.95); }
+        }
+
+        /* Grid lines */
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 780px;
+            position: relative;
+            z-index: 1;
+            animation: containerReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes containerReveal {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+        }
+
+        .logo-line {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .logo-line::before, .logo-line::after {
+            content: '';
+            height: 1px;
+            width: 60px;
+            background: linear-gradient(90deg, transparent, var(--accent));
+        }
+        .logo-line::after {
+            background: linear-gradient(90deg, var(--accent), transparent);
+        }
+
+        .logo-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(201,169,110,0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(201,169,110,0.4); }
+            50% { box-shadow: 0 0 20px var(--accent), 0 0 40px rgba(201,169,110,0.6); }
+        }
+
+        header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            background: linear-gradient(135deg, #e8e4de 0%, var(--accent) 50%, #e8e4de 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 4s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes shimmer {
+            to { background-position: 200% center; }
+        }
+
+        header p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            font-weight: 300;
+            letter-spacing: 0.02em;
+            max-width: 420px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: border-color 0.3s;
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+        }
+
+        .card:hover {
+            border-color: rgba(201,169,110,0.2);
+        }
+
+        /* Upload area */
+        .upload-area {
+            margin-bottom: 24px;
+        }
+
+        #imageUpload { display: none; }
+
+        #uploadLabel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 48px 32px;
+            border: 1px dashed rgba(201,169,110,0.3);
+            border-radius: 14px;
+            cursor: pointer;
+            background: rgba(201,169,110,0.03);
+            margin-bottom: 20px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #uploadLabel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(201,169,110,0.08), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #uploadLabel:hover {
+            border-color: rgba(201,169,110,0.6);
+            background: rgba(201,169,110,0.06);
+            transform: translateY(-2px);
+        }
+
+        #uploadLabel:hover::before { opacity: 1; }
+
+        .upload-icon {
+            width: 52px;
+            height: 52px;
+            color: var(--accent);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #uploadLabel:hover .upload-icon { transform: translateY(-4px) scale(1.1); }
+
+        #uploadLabel .upload-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        #uploadLabel .upload-sub {
+            font-size: 0.8rem;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        #analyzeBtn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent), #b8935a);
+            color: #0a0a0a;
+            border: none;
+            border-radius: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #analyzeBtn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #analyzeBtn:disabled {
+            background: rgba(255,255,255,0.08);
+            color: var(--muted);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #analyzeBtn:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(201,169,110,0.35);
+        }
+
+        #analyzeBtn:not(:disabled):hover::after { opacity: 1; }
+        #analyzeBtn:not(:disabled):active { transform: translateY(0); }
+
+        /* Preview */
+        #preview {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 380px;
+            border-radius: 14px;
+            display: none;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: imageReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes imageReveal {
+            from { opacity: 0; transform: scale(0.97); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Results */
+        #results {
+            border-radius: 14px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+        }
+
+        #results.hidden { display: none; }
+
+        .results-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .results-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: var(--accent);
+            letter-spacing: 0.04em;
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent2);
+            box-shadow: 0 0 8px var(--accent2);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        #resultContent { display: none; }
+
+        .result-section {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .result-section:last-child { border-bottom: none; }
+
+        .section-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        #description {
+            font-size: 1rem;
+            line-height: 1.75;
+            color: rgba(232,228,222,0.85);
+            font-weight: 300;
+        }
+
+        #labels {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .label-tag {
+            background: rgba(201,169,110,0.1);
+            color: var(--accent);
+            border: 1px solid rgba(201,169,110,0.25);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            transition: all 0.2s;
+            animation: tagPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        .label-tag:hover {
+            background: rgba(201,169,110,0.2);
+            border-color: rgba(201,169,110,0.5);
+            transform: translateY(-1px);
+        }
+
+        @keyframes tagPop {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Loader */
+        .loader-wrap {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .loader {
+            width: 40px;
+            height: 40px;
+            position: relative;
+        }
+
+        .loader::before, .loader::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+
+        .loader::before {
+            inset: 0;
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loader::after {
+            inset: 6px;
+            border-top-color: var(--accent2);
+            animation: spin 1.2s linear infinite reverse;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            font-size: 0.8rem;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 36px;
+            font-size: 0.75rem;
+            color: rgba(232,228,222,0.2);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+        }
+
+        /* Staggered tag animation */
+        .label-tag:nth-child(1) { animation-delay: 0.05s; }
+        .label-tag:nth-child(2) { animation-delay: 0.1s; }
+        .label-tag:nth-child(3) { animation-delay: 0.15s; }
+        .label-tag:nth-child(4) { animation-delay: 0.2s; }
+        .label-tag:nth-child(5) { animation-delay: 0.25s; }
+        .label-tag:nth-child(6) { animation-delay: 0.3s; }
+        .label-tag:nth-child(7) { animation-delay: 0.35s; }
+        .label-tag:nth-child(8) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo-line">
+                <div class="logo-dot"></div>
+            </div>
+            <h1>VISIO</h1>
+            <p>Upload an image to detect labels with AWS Rekognition and receive an AI-generated description from Amazon Bedrock.</p>
+        </header>
+
+        <div class="card">
+            <div class="upload-area">
+                <input type="file" id="imageUpload" accept="image/png, image/jpeg">
+                <label for="imageUpload" id="uploadLabel">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span class="upload-title">Drop your image here</span>
+                    <span class="upload-sub">PNG or JPEG accepted</span>
+                </label>
+                <button id="analyzeBtn" disabled>Analyze Image</button>
+            </div>
+
+            <div id="preview">
+                <img id="imagePreview" src="#" alt="Image Preview">
+            </div>
+
+            <div id="results" class="hidden">
+                <div class="results-header">
+                    <div class="status-dot"></div>
+                    <h2>Analysis Results</h2>
+                </div>
+                <div class="loader-wrap" id="loader">
+                    <div class="loader"></div>
+                    <span class="loader-text">Analyzing&hellip;</span>
+                </div>
+                <div id="resultContent">
+                    <div class="result-section">
+                        <div class="section-label">AI Description</div>
+                        <p id="description"></p>
+                    </div>
+                    <div class="result-section">
+                        <div class="section-label">Detected Labels</div>
+                        <div id="labels"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with AWS Rekognition &nbsp;·&nbsp; Bedrock &nbsp;·&nbsp; Terraform</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageUpload = document.getElementById('imageUpload');
+            const uploadLabel = document.getElementById('uploadLabel');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const imagePreview = document.getElementById('imagePreview');
+            const resultsContainer = document.getElementById('results');
+            const loader = document.getElementById('loader');
+            const resultContent = document.getElementById('resultContent');
+            const descriptionEl = document.getElementById('description');
+            const labelsEl = document.getElementById('labels');
+
+            const API_ENDPOINT = 'https://oest2wm8g3.execute-api.us-east-1.amazonaws.com/v1/analyze';
+
+            let base64Image = null;
+
+            imageUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                        // Reset animation
+                        imagePreview.style.animation = 'none';
+                        imagePreview.offsetHeight;
+                        imagePreview.style.animation = '';
+                        uploadLabel.querySelector('.upload-title').textContent = file.name;
+                        uploadLabel.querySelector('.upload-sub').textContent = 'Ready to analyze';
+                        analyzeBtn.disabled = false;
+                    };
+                    reader.readAsDataURL(file);
+
+                    const readerForBase64 = new FileReader();
+                    readerForBase64.onload = (e) => {
+                        base64Image = e.target.result.split(',')[1];
+                    };
+                    readerForBase64.readAsDataURL(file);
+                }
+            });
+
+            analyzeBtn.addEventListener('click', async () => {
+                if (!base64Image || API_ENDPOINT === 'YOUR_API_GATEWAY_INVOKE_URL') {
+                    alert('Please select an image first or configure the API endpoint.');
+                    return;
+                }
+
+                resultsContainer.classList.remove('hidden');
+                loader.style.display = 'flex';
+                resultContent.style.display = 'none';
+                descriptionEl.textContent = '';
+                labelsEl.innerHTML = '';
+
+                try {
+                    const response = await fetch(API_ENDPOINT, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: base64Image }),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    descriptionEl.textContent = data.description;
+                    data.labels.forEach((label, i) => {
+                        const labelTag = document.createElement('div');
+                        labelTag.className = 'label-tag';
+                        labelTag.textContent = label;
+                        labelTag.style.animationDelay = `${i * 0.05}s`;
+                        labelsEl.appendChild(labelTag);
+                    });
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    descriptionEl.textContent = `An error occurred: ${error.message}`;
+                } finally {
+                    loader.style.display = 'none';
+                    resultContent.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
