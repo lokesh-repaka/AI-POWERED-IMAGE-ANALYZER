@@ -7,6 +7,7 @@ An enterprise-grade, serverless image analysis web application that combines **A
 VISIO demonstrates a production-ready architecture that leverages serverless AWS services to build a scalable, cost-effective AI application. Users upload images through a beautifully designed web interface, which triggers a Lambda function that analyzes the image using Rekognition and Bedrock.
 
 ### Architecture Highlights
+<img width="1536" height="1024" alt="Architecture" src="https://github.com/user-attachments/assets/dadee9a0-920c-4a75-a848-5f08538ef2f2" />
 
 - **Frontend**: Modern, responsive HTML5 single-page application hosted on AWS S3
 - **Backend**: Serverless Lambda function for image processing and analysis
